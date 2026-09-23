@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: CarePulse AI health triage assistant API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: auth
+    description: Authentication and session operations
+  - name: assessments
+    description: Symptom assessments and triage history
+  - name: dashboard
+    description: Dashboard summary operations
 paths:
   /healthz:
     get:
@@ -24,7 +30,179 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Register a CarePulse account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Account created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Invalid registration details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Log into a CarePulse account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Authenticated session
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Invalid email or password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [auth]
+      summary: Get the current account
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get triage activity summary
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+  /assessments:
+    get:
+      operationId: listAssessments
+      tags: [assessments]
+      summary: List the current user's assessments
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: urgency
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/UrgencyLevel"
+      responses:
+        "200":
+          description: Assessment history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Assessment"
+    post:
+      operationId: createAssessment
+      tags: [assessments]
+      summary: Analyze symptoms and save an assessment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssessmentInput"
+      responses:
+        "201":
+          description: Saved assessment with triage guidance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assessment"
+        "400":
+          description: Invalid symptom intake
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /assessments/{id}:
+    get:
+      operationId: getAssessment
+      tags: [assessments]
+      summary: Get one assessment
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Assessment detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Assessment"
+        "404":
+          description: Assessment not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +211,200 @@ components:
           type: string
       required:
         - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+      required: [id, name, email, createdAt]
+    RegisterInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+      required: [name, email, password]
+    LoginInput:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+      required: [email, password]
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required: [token, user]
+    UrgencyLevel:
+      type: string
+      enum:
+        - Self-Care
+        - Routine Consultation
+        - Urgent Care
+        - EMERGENCY_IMMEDIATE_CARE
+    Likelihood:
+      type: string
+      enum: [Low, Moderate, High]
+    PotentialCause:
+      type: object
+      properties:
+        name:
+          type: string
+        likelihood:
+          $ref: "#/components/schemas/Likelihood"
+        description:
+          type: string
+      required: [name, likelihood, description]
+    TriageAnalysis:
+      type: object
+      properties:
+        urgencyLevel:
+          $ref: "#/components/schemas/UrgencyLevel"
+        disclaimer:
+          type: string
+        summary:
+          type: string
+        potentialCauses:
+          type: array
+          items:
+            $ref: "#/components/schemas/PotentialCause"
+        recommendedActions:
+          type: array
+          items:
+            type: string
+        questionsForDoctor:
+          type: array
+          items:
+            type: string
+        redFlagWarnings:
+          type: array
+          items:
+            type: string
+      required:
+        - urgencyLevel
+        - disclaimer
+        - summary
+        - potentialCauses
+        - recommendedActions
+        - questionsForDoctor
+        - redFlagWarnings
+    AssessmentInput:
+      type: object
+      properties:
+        age:
+          type: integer
+          minimum: 0
+          maximum: 120
+        biologicalSex:
+          type: string
+          minLength: 1
+          maxLength: 50
+        primarySymptoms:
+          type: string
+          minLength: 3
+          maxLength: 5000
+        duration:
+          type: string
+          minLength: 1
+          maxLength: 100
+        severity:
+          type: integer
+          minimum: 1
+          maximum: 10
+        chronicConditions:
+          type: string
+          maxLength: 3000
+        currentMedications:
+          type: string
+          maxLength: 3000
+      required:
+        - age
+        - biologicalSex
+        - primarySymptoms
+        - duration
+        - severity
+    Assessment:
+      type: object
+      properties:
+        id:
+          type: integer
+        age:
+          type: integer
+        biologicalSex:
+          type: string
+        primarySymptoms:
+          type: string
+        duration:
+          type: string
+        severity:
+          type: integer
+        chronicConditions:
+          type: ["string", "null"]
+        currentMedications:
+          type: ["string", "null"]
+        urgencyLevel:
+          $ref: "#/components/schemas/UrgencyLevel"
+        aiAnalysis:
+          $ref: "#/components/schemas/TriageAnalysis"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - age
+        - biologicalSex
+        - primarySymptoms
+        - duration
+        - severity
+        - chronicConditions
+        - currentMedications
+        - urgencyLevel
+        - aiAnalysis
+        - createdAt
+    DashboardSummary:
+      type: object
+      properties:
+        totalAssessments:
+          type: integer
+        thisMonth:
+          type: integer
+        latestAssessment:
+          oneOf:
+            - $ref: "#/components/schemas/Assessment"
+            - type: "null"
+        urgencyCounts:
+          type: object
+          additionalProperties:
+            type: integer
+      required: [totalAssessments, thisMonth, latestAssessment, urgencyCounts]
 

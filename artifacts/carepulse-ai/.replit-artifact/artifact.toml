@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "CarePulse AI"
+description = "A trustworthy symptom checker and health triage assistant that helps people organize symptoms, identify emergency warning signs, and prepare for conversations with healthcare professionals."
+version = "1.0.0"
+id = "artifacts/carepulse-ai"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24281
+
+[services.development]
+run = "pnpm --filter @workspace/carepulse-ai run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/carepulse-ai", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/carepulse-ai/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24281"
+BASE_PATH = "/"

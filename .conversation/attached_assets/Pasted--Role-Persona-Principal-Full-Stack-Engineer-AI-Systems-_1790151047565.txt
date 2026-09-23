@@ -1,0 +1,84 @@
+# Role & Persona: Principal Full-Stack Engineer, AI Systems Architect, and Expert Prompt Engineer
+
+You are building a production-grade, end-to-end full-stack web application titled **"CarePulse AI — Intelligent Symptom Checker & Health Triage Assistant"**[cite: 2, 3]. 
+Your objective is to generate and scaffold the complete project, writing all frontend, backend, database schema, security rules, and AI integration code without leaving any placeholders, missing implementations, or `// TODO` comments[cite: 3].
+
+---
+
+## 1. Core Mission Directive & Product Goal
+CarePulse AI empowers users to analyze bodily symptoms, evaluate potential non-emergency conditions, identify emergency red flags, and receive clear lifestyle/triage recommendations[cite: 2, 3].
+- **CRITICAL SAFETY DIRECTIVE:** The AI does NOT diagnose disease or prescribe medication. It must display explicit medical disclaimers on every advisory screen and immediately route severe red-flag symptoms to urgent care guidance[cite: 2, 3].
+
+---
+
+## 2. Mandatory Features
+1. **JWT-Based User Authentication:** Secure register, login, session persistence, and profile management[cite: 3].
+2. **Symptom Intake Wizard:** Multi-step form capturing age, biological sex, primary symptoms, duration, severity scale (1-10), existing chronic conditions, and current medications[cite: 2].
+3. **Gemini AI Triage Engine:** Structured JSON symptom evaluation using `@google/genai` returning potential conditions, self-care steps, triage urgency levels (Self-Care, Routine Doctor Visit, Urgent Care, Immediate ER), questions for a doctor, and bold medical disclaimers[cite: 2, 3].
+4. **Health History & Triage Dashboard:** Persistent log of all past assessments, searchable and filterable by date and severity[cite: 3].
+5. **Emergency Red-Flag Interceptor:** Immediate UI modal alert triggering if keywords (e.g., chest pain, shortness of breath, sudden numbness) appear[cite: 2].
+
+---
+
+## 3. Technology Requirements
+- **Frontend:** React.js (Vite), Tailwind CSS, Lucide React (icons), React Hook Form, Axios[cite: 3].
+- **Backend:** Node.js, Express.js, CORS, JSONWebToken, Bcrypt.js, Zod (runtime validation)[cite: 3].
+- **Database:** PostgreSQL (Compatible with Replit Postgres or Supabase Cloud) with pg / pg-pool[cite: 3].
+- **AI Integration:** `@google/genai` SDK using model `gemini-1.5-flash` or `gemini-2.0-flash`[cite: 3].
+
+---
+
+## 4. Application Pages & Routes
+- `/` — Modern landing page highlighting features, how it works, and emergency notice[cite: 3].
+- `/auth/login` & `/auth/register` — Clean authentication forms with form validation[cite: 3].
+- `/dashboard` — Overview of recent health logs, triage stats, and quick-start checkup button[cite: 3].
+- `/checkup` — Multi-step interactive symptom submission wizard[cite: 2].
+- `/assessment/:id` — Detailed AI assessment result page displaying safety badges, conditions, questions for doctor, and action plans[cite: 2, 3].
+- `/history` — List view of all past symptom assessments with date/urgency tags[cite: 3].
+
+---
+
+## 5. Database Schema (PostgreSQL)
+
+```sql
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS assessments (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    age INTEGER NOT NULL,
+    gender VARCHAR(50) NOT NULL,
+    primary_symptoms TEXT NOT NULL,
+    severity INTEGER NOT NULL,
+    duration VARCHAR(100) NOT NULL,
+    chronic_conditions TEXT,
+    urgency_level VARCHAR(50) NOT NULL,
+    ai_analysis JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_assessments_user_id ON assessments(user_id);
+```[cite: 3]
+
+---
+
+## 6. Backend API Routes
+
+- `POST /api/auth/register` — Validate input via Zod, hash password, create user, return JWT[cite: 3].
+- `POST /api/auth/login` — Validate credentials, return JWT and user profile[cite: 3].
+- `GET /api/auth/me` — Verify auth token and return current session user[cite: 3].
+- `POST /api/assessments` — Accepts symptom payload, calls Gemini API with structured JSON output schema, saves record to PostgreSQL, and returns saved assessment[cite: 3].
+- `GET /api/assessments` — Returns all assessments for the logged-in user[cite: 3].
+- `GET /api/assessments/:id` — Returns single detailed assessment record belonging to the user[cite: 3].
+
+---
+
+## 7. Gemini AI System Prompt & JSON Output Schema
+
+### System Prompt:

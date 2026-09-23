@@ -1,0 +1,1 @@
+- [Gemini provider fallback](gemini-provider.md) — use secure user-owned key flow and preserve deterministic emergency-safe fallback when managed setup is unavailable.
