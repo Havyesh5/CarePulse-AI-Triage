@@ -37,12 +37,16 @@ export function requireAuth(
 
   try {
     const payload = jwt.verify(token, getAuthSecret());
-    if (typeof payload === "string" || typeof payload.sub !== "string") {
+    const subject = typeof payload === "string" ? undefined : payload.sub;
+    if (
+      typeof subject !== "string" &&
+      typeof subject !== "number"
+    ) {
       res.status(401).json({ error: "Invalid authentication token" });
       return;
     }
 
-    const userId = Number(payload.sub);
+    const userId = Number(subject);
     if (!Number.isInteger(userId) || userId < 1) {
       res.status(401).json({ error: "Invalid authentication token" });
       return;

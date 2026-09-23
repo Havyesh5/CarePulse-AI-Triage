@@ -121,7 +121,7 @@ function fallbackAnalysis(intake: Intake): TriageAnalysis {
   };
 }
 
-function normalizeModelResult(raw: unknown, intake: Intake): TriageAnalysis {
+export function normalizeModelResult(raw: unknown, intake: Intake): TriageAnalysis {
   if (!raw || typeof raw !== "object") {
     return fallbackAnalysis(intake);
   }
