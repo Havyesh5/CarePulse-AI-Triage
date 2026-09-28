@@ -71,6 +71,11 @@ export interface PotentialCause {
 }
 
 export interface TriageAnalysis {
+  /**
+     * @minimum 1
+     * @maximum 10
+     */
+  severity?: number;
   urgencyLevel: UrgencyLevel;
   disclaimer: string;
   summary: string;
@@ -101,11 +106,6 @@ export interface AssessmentInput {
      * @maxLength 100
      */
   duration: string;
-  /**
-     * @minimum 1
-     * @maximum 10
-     */
-  severity: number;
   /** @maxLength 3000 */
   chronicConditions?: string;
   /** @maxLength 3000 */

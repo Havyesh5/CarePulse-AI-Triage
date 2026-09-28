@@ -10,6 +10,7 @@ export type UrgencyLevel =
   | "EMERGENCY_IMMEDIATE_CARE";
 
 export type TriageAnalysis = {
+  severity: number;
   urgencyLevel: UrgencyLevel;
   disclaimer: string;
   summary: string;
@@ -28,7 +29,6 @@ export type Intake = {
   biologicalSex: string;
   primarySymptoms: string;
   duration: string;
-  severity: number;
   chronicConditions?: string;
   currentMedications?: string;
 };
@@ -54,8 +54,29 @@ export function hasEmergencyRedFlag(text: string): boolean {
   return emergencyPatterns.some((pattern) => pattern.test(text));
 }
 
+export function inferSeverityFromSymptoms(text: string): number {
+  const normalized = text.toLowerCase();
+  if (hasEmergencyRedFlag(normalized)) return 10;
+  if (/\b(severe|worst|debilitating|excruciating|cannot function|unable to function|persistent vomiting|high fever)\b/i.test(normalized)) {
+    return 8;
+  }
+  if (/\b(moderate|worsening|interferes with|keeps me from|frequent)\b/i.test(normalized)) {
+    return 6;
+  }
+  if (/\b(mild|slight|minor|occasional)\b/i.test(normalized)) return 2;
+  if (/\b(pain|ache|headache|migraine|fatigue|tired|nausea|cough|fever)\b/i.test(normalized)) return 4;
+  return 3;
+}
+
+function urgencyForSeverity(severity: number): UrgencyLevel {
+  if (severity >= 8) return "Urgent Care";
+  if (severity <= 3) return "Self-Care";
+  return "Routine Consultation";
+}
+
 function emergencyAnalysis(): TriageAnalysis {
   return {
+    severity: 10,
     urgencyLevel: "EMERGENCY_IMMEDIATE_CARE",
     disclaimer: MEDICAL_DISCLAIMER,
     summary:
@@ -85,9 +106,11 @@ function emergencyAnalysis(): TriageAnalysis {
 }
 
 function fallbackAnalysis(intake: Intake): TriageAnalysis {
-  const urgent = intake.severity >= 8;
+  const severity = inferSeverityFromSymptoms(intake.primarySymptoms);
+  const urgent = severity >= 8;
   return {
-    urgencyLevel: urgent ? "Urgent Care" : "Routine Consultation",
+    severity,
+    urgencyLevel: urgencyForSeverity(severity),
     disclaimer: MEDICAL_DISCLAIMER,
     summary: urgent
       ? "The reported symptoms are severe enough to warrant prompt in-person medical evaluation."
@@ -127,6 +150,7 @@ export function normalizeModelResult(raw: unknown, intake: Intake): TriageAnalys
   }
 
   const value = raw as Record<string, unknown>;
+  const fallback = fallbackAnalysis(intake);
   const urgency = value.urgency_level ?? value.urgencyLevel;
   const allowedUrgencies: UrgencyLevel[] = [
     "Self-Care",
@@ -134,9 +158,18 @@ export function normalizeModelResult(raw: unknown, intake: Intake): TriageAnalys
     "Urgent Care",
     "EMERGENCY_IMMEDIATE_CARE",
   ];
-  const urgencyLevel = allowedUrgencies.includes(urgency as UrgencyLevel)
+  let urgencyLevel = allowedUrgencies.includes(urgency as UrgencyLevel)
     ? (urgency as UrgencyLevel)
-    : fallbackAnalysis(intake).urgencyLevel;
+    : fallback.urgencyLevel;
+  const modelSeverity =
+    typeof value.severity_score === "number"
+      ? value.severity_score
+      : typeof value.severity === "number"
+        ? value.severity
+        : fallback.severity;
+  const severity = Number.isInteger(modelSeverity) && modelSeverity >= 1 && modelSeverity <= 10
+    ? modelSeverity
+    : fallback.severity;
 
   const causes = value.potential_causes ?? value.potentialCauses;
   const actions = value.recommended_actions ?? value.recommendedActions;
@@ -144,9 +177,10 @@ export function normalizeModelResult(raw: unknown, intake: Intake): TriageAnalys
   const warnings = value.red_flag_warnings ?? value.redFlagWarnings;
 
   const normalized: TriageAnalysis = {
+    severity,
     urgencyLevel,
     disclaimer: MEDICAL_DISCLAIMER,
-    summary: typeof value.summary === "string" ? value.summary : fallbackAnalysis(intake).summary,
+    summary: typeof value.summary === "string" ? value.summary : fallback.summary,
     potentialCauses: Array.isArray(causes)
       ? causes
           .filter((cause): cause is Record<string, unknown> => Boolean(cause && typeof cause === "object"))
@@ -174,7 +208,6 @@ export function normalizeModelResult(raw: unknown, intake: Intake): TriageAnalys
       : [],
   };
 
-  const fallback = fallbackAnalysis(intake);
   if (normalized.potentialCauses.length === 0) normalized.potentialCauses = fallback.potentialCauses;
   if (normalized.recommendedActions.length === 0) normalized.recommendedActions = fallback.recommendedActions;
   if (normalized.questionsForDoctor.length === 0) normalized.questionsForDoctor = fallback.questionsForDoctor;
@@ -182,8 +215,9 @@ export function normalizeModelResult(raw: unknown, intake: Intake): TriageAnalys
   if (hasEmergencyRedFlag(intake.primarySymptoms)) {
     return emergencyAnalysis();
   }
-  if (intake.severity >= 9 && normalized.urgencyLevel === "Self-Care") {
-    normalized.urgencyLevel = "Urgent Care";
+  if (normalized.urgencyLevel === "EMERGENCY_IMMEDIATE_CARE") {
+    normalized.urgencyLevel = urgencyForSeverity(fallback.severity);
+    normalized.severity = fallback.severity;
   }
   return normalized;
 }
@@ -204,9 +238,11 @@ export async function analyzeSymptoms(intake: Intake): Promise<TriageAnalysis> {
 Rules:
 - Never make a definitive diagnosis or prescribe medication.
 - Use wording such as "possible conditions to discuss with a healthcare professional".
-- Return only valid JSON with exactly these snake_case keys: urgency_level, disclaimer, summary, potential_causes, recommended_actions, questions_for_doctor, red_flag_warnings.
+- Infer severity_score as an integer from 1 (very mild) to 10 (most severe) using the natural-language symptom description. There is no user-provided severity score.
+- Return only valid JSON with exactly these snake_case keys: severity_score, urgency_level, disclaimer, summary, potential_causes, recommended_actions, questions_for_doctor, red_flag_warnings.
 - urgency_level must be exactly one of: Self-Care, Routine Consultation, Urgent Care, EMERGENCY_IMMEDIATE_CARE.
-- If any life-threatening risk appears, use EMERGENCY_IMMEDIATE_CARE and advise emergency services immediately.
+- Use EMERGENCY_IMMEDIATE_CARE only when the symptom description explicitly contains a true emergency red flag such as sudden severe chest pressure or pain, acute shortness of breath or difficulty breathing, sudden facial drooping or numbness, uncontrolled bleeding, seizure, unconsciousness, or thoughts of self-harm.
+- Mild or common symptoms such as mild fatigue or a common headache must not receive EMERGENCY_IMMEDIATE_CARE.
 - The disclaimer must be exactly: ${MEDICAL_DISCLAIMER}
 - Keep the response concise and practical.
 
@@ -215,7 +251,6 @@ Age: ${intake.age}
 Biological sex: ${intake.biologicalSex}
 Symptoms: ${intake.primarySymptoms}
 Duration: ${intake.duration}
-Severity (1-10): ${intake.severity}
 Chronic conditions: ${intake.chronicConditions || "None reported"}
 Current medications: ${intake.currentMedications || "None reported"}`;
 

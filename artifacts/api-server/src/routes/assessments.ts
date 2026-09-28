@@ -2,8 +2,8 @@ import { and, desc, eq, ilike, sql } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import { db, assessmentsTable } from "@workspace/db";
 import {
-  CreateAssessmentBody,
   CreateAssessmentResponse,
+  AssessmentInputSchema,
   GetAssessmentParams,
   GetAssessmentResponse,
   GetDashboardSummaryResponse,
@@ -40,7 +40,7 @@ router.get("/assessments", async (req, res): Promise<void> => {
 });
 
 router.post("/assessments", async (req, res): Promise<void> => {
-  const parsed = CreateAssessmentBody.safeParse(req.body);
+  const parsed = AssessmentInputSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
     return;
@@ -55,7 +55,7 @@ router.post("/assessments", async (req, res): Promise<void> => {
       biologicalSex: parsed.data.biologicalSex,
       primarySymptoms: parsed.data.primarySymptoms,
       duration: parsed.data.duration,
-      severity: parsed.data.severity,
+      severity: analysis.severity,
       chronicConditions: parsed.data.chronicConditions ?? null,
       currentMedications: parsed.data.currentMedications ?? null,
       urgencyLevel: analysis.urgencyLevel,

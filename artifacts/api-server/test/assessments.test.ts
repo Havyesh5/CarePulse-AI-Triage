@@ -78,7 +78,6 @@ describe("assessment ownership", () => {
         biologicalSex: "unspecified",
         primarySymptoms: "chest pain",
         duration: "ten minutes",
-        severity: 8,
       }),
     });
     assert.equal(createResponse.status, 201);

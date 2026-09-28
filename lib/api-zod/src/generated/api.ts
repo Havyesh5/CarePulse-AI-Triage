@@ -81,6 +81,10 @@ export const GetMeResponse = zod.object({
 /**
  * @summary Get triage activity summary
  */
+export const getDashboardSummaryResponseLatestAssessmentOneAiAnalysisSeverityMax = 10;
+
+
+
 export const GetDashboardSummaryResponse = zod.object({
   "totalAssessments": zod.number().int(),
   "thisMonth": zod.number().int(),
@@ -95,6 +99,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "currentMedications": zod.string().nullable(),
   "urgencyLevel": zod.enum(['Self-Care', 'Routine Consultation', 'Urgent Care', 'EMERGENCY_IMMEDIATE_CARE']),
   "aiAnalysis": zod.object({
+  "severity": zod.number().int().min(1).max(getDashboardSummaryResponseLatestAssessmentOneAiAnalysisSeverityMax).optional(),
   "urgencyLevel": zod.enum(['Self-Care', 'Routine Consultation', 'Urgent Care', 'EMERGENCY_IMMEDIATE_CARE']),
   "disclaimer": zod.string(),
   "summary": zod.string(),
@@ -121,6 +126,10 @@ export const ListAssessmentsQueryParams = zod.object({
   "urgency": zod.enum(['Self-Care', 'Routine Consultation', 'Urgent Care', 'EMERGENCY_IMMEDIATE_CARE']).optional()
 })
 
+export const listAssessmentsResponseAiAnalysisSeverityMax = 10;
+
+
+
 export const ListAssessmentsResponseItem = zod.object({
   "id": zod.number().int(),
   "age": zod.number().int(),
@@ -132,6 +141,7 @@ export const ListAssessmentsResponseItem = zod.object({
   "currentMedications": zod.string().nullable(),
   "urgencyLevel": zod.enum(['Self-Care', 'Routine Consultation', 'Urgent Care', 'EMERGENCY_IMMEDIATE_CARE']),
   "aiAnalysis": zod.object({
+  "severity": zod.number().int().min(1).max(listAssessmentsResponseAiAnalysisSeverityMax).optional(),
   "urgencyLevel": zod.enum(['Self-Care', 'Routine Consultation', 'Urgent Care', 'EMERGENCY_IMMEDIATE_CARE']),
   "disclaimer": zod.string(),
   "summary": zod.string(),
@@ -162,8 +172,6 @@ export const createAssessmentBodyPrimarySymptomsMax = 5000;
 
 export const createAssessmentBodyDurationMax = 100;
 
-export const createAssessmentBodySeverityMax = 10;
-
 export const createAssessmentBodyChronicConditionsMax = 3000;
 
 export const createAssessmentBodyCurrentMedicationsMax = 3000;
@@ -175,10 +183,13 @@ export const CreateAssessmentBody = zod.object({
   "biologicalSex": zod.string().min(1).max(createAssessmentBodyBiologicalSexMax),
   "primarySymptoms": zod.string().min(createAssessmentBodyPrimarySymptomsMin).max(createAssessmentBodyPrimarySymptomsMax),
   "duration": zod.string().min(1).max(createAssessmentBodyDurationMax),
-  "severity": zod.number().int().min(1).max(createAssessmentBodySeverityMax),
   "chronicConditions": zod.string().max(createAssessmentBodyChronicConditionsMax).optional(),
   "currentMedications": zod.string().max(createAssessmentBodyCurrentMedicationsMax).optional()
 })
+
+export const createAssessmentResponseAiAnalysisSeverityMax = 10;
+
+
 
 export const CreateAssessmentResponse = zod.object({
   "id": zod.number().int(),
@@ -191,6 +202,7 @@ export const CreateAssessmentResponse = zod.object({
   "currentMedications": zod.string().nullable(),
   "urgencyLevel": zod.enum(['Self-Care', 'Routine Consultation', 'Urgent Care', 'EMERGENCY_IMMEDIATE_CARE']),
   "aiAnalysis": zod.object({
+  "severity": zod.number().int().min(1).max(createAssessmentResponseAiAnalysisSeverityMax).optional(),
   "urgencyLevel": zod.enum(['Self-Care', 'Routine Consultation', 'Urgent Care', 'EMERGENCY_IMMEDIATE_CARE']),
   "disclaimer": zod.string(),
   "summary": zod.string(),
@@ -217,6 +229,10 @@ export const GetAssessmentParams = zod.object({
   "id": zod.coerce.number().int().min(1)
 })
 
+export const getAssessmentResponseAiAnalysisSeverityMax = 10;
+
+
+
 export const GetAssessmentResponse = zod.object({
   "id": zod.number().int(),
   "age": zod.number().int(),
@@ -228,6 +244,7 @@ export const GetAssessmentResponse = zod.object({
   "currentMedications": zod.string().nullable(),
   "urgencyLevel": zod.enum(['Self-Care', 'Routine Consultation', 'Urgent Care', 'EMERGENCY_IMMEDIATE_CARE']),
   "aiAnalysis": zod.object({
+  "severity": zod.number().int().min(1).max(getAssessmentResponseAiAnalysisSeverityMax).optional(),
   "urgencyLevel": zod.enum(['Self-Care', 'Routine Consultation', 'Urgent Care', 'EMERGENCY_IMMEDIATE_CARE']),
   "disclaimer": zod.string(),
   "summary": zod.string(),

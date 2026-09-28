@@ -481,9 +481,8 @@ h1 em, h2 em { font-style: normal; color: var(--teal); }
 .input { display: block; width: 100%; margin-top: 8px; padding: 11px 12px; border: 1px solid #d8d0c2; border-radius: 9px; color: var(--ink); background: #fffdf8; font: inherit; font-size: 13px; }
 .input::placeholder { color: #a2aaa1; }.input:hover { border-color: #b8c7bc; }.input:focus { border-color: var(--teal); outline: 0; box-shadow: 0 0 0 3px rgba(131,207,181,.17); }
 .input-large { min-height: 46px; }.textarea { min-height: 92px; resize: vertical; line-height: 1.5; }
-.label-optional { margin-left: 5px; color: #a0aaa2; font-size: 10px; font-weight: 500; }.field-error { display: block; margin-top: 5px; color: var(--coral); font-size: 11px; font-weight: 500; }
+.label-optional { margin-left: 5px; color: #a0aaa2; font-size: 10px; font-weight: 500; }.field-error { display: block; margin-top: 5px; color: var(--coral); font-size: 11px; font-weight: 500; }.field-help { display: block; margin-top: 5px; color: #7f8d83; font-size: 11px; line-height: 1.45; }
 .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 17px; }
-.severity-value { float: right; color: var(--teal); font-weight: 700; }.range-input { width: 100%; margin-top: 21px; accent-color: var(--teal); cursor: pointer; }.range-labels { display: flex; justify-content: space-between; margin-top: 5px; color: #9aa49c; font-size: 10px; font-weight: 500; }
 .privacy-callout { display: flex; gap: 10px; margin-top: 23px; padding: 12px; border-radius: 9px; color: #668079; background: #e7f0e6; font-size: 11px; line-height: 1.45; }.privacy-callout svg { flex: none; color: var(--teal); }
 .form-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 37px; padding-top: 20px; border-top: 1px solid #e8e0d4; }
 .form-alert { display: flex; align-items: flex-start; gap: 8px; margin: 18px 0 -10px; padding: 11px 12px; border: 1px solid #edc8bd; border-radius: 9px; color: #a34d3e; background: #fff0e9; font-size: 12px; line-height: 1.4; }.form-alert svg { flex: none; margin-top: 1px; }

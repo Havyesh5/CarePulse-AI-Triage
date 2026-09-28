@@ -52,6 +52,7 @@ import {
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { getDurationValidationError, getSymptomDescriptionError } from '@/lib/intake-validation';
 import NotFound from '@/pages/not-found';
 
 const queryClient = new QueryClient();
@@ -264,7 +265,7 @@ function AssessmentCard({ assessment }: { assessment: Assessment }) {
         <UrgencyPill level={assessment.urgencyLevel} />
       </div>
       <h3>{truncate(assessment.primarySymptoms, 88)}</h3>
-      <p><Clock3 size={14} /> {assessment.duration} <span className="dot-separator" /> Severity {assessment.severity}/10</p>
+      <p><Clock3 size={14} /> {assessment.duration} <span className="dot-separator" /> Inferred severity {assessment.severity}/10</p>
       <span className="assessment-card-link">View care guidance <ChevronRight size={15} /></span>
     </Link>
   );
@@ -349,13 +350,14 @@ function AuthPage({ mode }: { mode: 'login' | 'register' }) {
       setFormError('Passwords do not match.');
       return;
     }
+    const email = values.email.trim();
     if (isRegister) {
-      registerMutation.mutate({ data: { name: values.name ?? '', email: values.email, password: values.password } }, {
+      registerMutation.mutate({ data: { name: values.name ?? '', email, password: values.password } }, {
         onSuccess: (response) => { setAuth(response); setLocation('/dashboard'); },
         onError: (error) => setFormError(getErrorMessage(error, 'We couldn’t create your account.')),
       });
     } else {
-      loginMutation.mutate({ data: { email: values.email, password: values.password } }, {
+      loginMutation.mutate({ data: { email, password: values.password } }, {
         onSuccess: (response) => { setAuth(response); setLocation('/dashboard'); },
         onError: (error) => setFormError(getErrorMessage(error, 'We couldn’t sign you in.')),
       });
@@ -374,7 +376,7 @@ function AuthPage({ mode }: { mode: 'login' | 'register' }) {
           {formError && <div className="form-alert" role="alert" data-testid="alert-auth-error"><AlertCircle size={17} /> {formError}</div>}
           <form onSubmit={handleSubmit(submit)} className="auth-form">
             {isRegister && <label className="field-label">Your name<input data-testid="input-name" className="input" placeholder="How should we call you?" {...register('name', { required: 'Tell us your name.', minLength: { value: 2, message: 'Use at least 2 characters.' } })} />{errors.name && <span className="field-error">{errors.name.message}</span>}</label>}
-            <label className="field-label">Email address<input data-testid="input-email" type="email" className="input" placeholder="you@example.com" {...register('email', { required: 'Enter your email.' })} />{errors.email && <span className="field-error">{errors.email.message}</span>}</label>
+            <label className="field-label">Email address<input data-testid="input-email" type="email" className="input" placeholder="you@example.com" {...register('email', { required: 'Enter your email.', validate: (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) || 'Enter a valid email address.' })} />{errors.email && <span className="field-error">{errors.email.message}</span>}</label>
             <label className="field-label">Password<input data-testid="input-password" type="password" className="input" placeholder={isRegister ? 'At least 8 characters' : 'Your password'} {...register('password', { required: 'Enter your password.', minLength: isRegister ? { value: 8, message: 'Use at least 8 characters.' } : undefined })} />{errors.password && <span className="field-error">{errors.password.message}</span>}</label>
             {isRegister && <label className="field-label">Confirm password<input data-testid="input-confirm-password" type="password" className="input" placeholder="Repeat your password" {...register('confirmPassword', { required: 'Confirm your password.' })} />{errors.confirmPassword && <span className="field-error">{errors.confirmPassword.message}</span>}</label>}
             <button type="submit" className="button button-primary button-full button-large" disabled={mutation.isPending} data-testid="button-auth-submit">{mutation.isPending ? 'One moment…' : isRegister ? 'Create my account' : 'Sign in' } <ArrowRight size={17} /></button>
@@ -433,16 +435,16 @@ function Checkup() {
   const create = useCreateAssessment();
   const [step, setStep] = useState(1);
   const [error, setError] = useState('');
-  const form = useForm<AssessmentInput>({ defaultValues: { age: undefined, biologicalSex: '', primarySymptoms: '', duration: '', severity: 5, chronicConditions: '', currentMedications: '' } });
+  const form = useForm<AssessmentInput>({ defaultValues: { age: undefined, biologicalSex: '', primarySymptoms: '', duration: '', chronicConditions: '', currentMedications: '' } });
   const steps = ['Basics', 'Symptoms', 'Health context'];
   const goNext = async () => {
-    const fields: (keyof AssessmentInput)[] = step === 1 ? ['age', 'biologicalSex'] : step === 2 ? ['primarySymptoms', 'duration', 'severity'] : [];
+    const fields: (keyof AssessmentInput)[] = step === 1 ? ['age', 'biologicalSex'] : step === 2 ? ['primarySymptoms', 'duration'] : [];
     const valid = await form.trigger(fields);
     if (valid) { setError(''); setStep((current) => Math.min(current + 1, 3)); } else setError('A little more detail will help us make this useful.');
   };
   const submit = (values: AssessmentInput) => {
     setError('');
-    create.mutate({ data: { ...values, age: Number(values.age), severity: Number(values.severity), chronicConditions: values.chronicConditions || undefined, currentMedications: values.currentMedications || undefined } }, {
+    create.mutate({ data: { ...values, age: Number(values.age), chronicConditions: values.chronicConditions || undefined, currentMedications: values.currentMedications || undefined } }, {
       onSuccess: (assessment) => {
         queryClient.invalidateQueries({ queryKey: getListAssessmentsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
@@ -460,7 +462,7 @@ function Checkup() {
         <section className="checkup-card">
           <form onSubmit={form.handleSubmit(submit)}>
             {step === 1 && <div className="form-step"><span className="step-overline">STEP 1 OF 3</span><h2>Let’s start with the basics.</h2><p className="step-description">This context helps us keep the guidance relevant to you.</p><label className="field-label">How old are you?<input data-testid="input-age" type="number" min="0" max="120" className="input input-large" placeholder="Your age" {...form.register('age', { required: 'Enter your age.', valueAsNumber: true, min: { value: 0, message: 'Enter a valid age.' }, max: { value: 120, message: 'Enter a valid age.' } })} />{form.formState.errors.age && <span className="field-error">{form.formState.errors.age.message}</span>}</label><label className="field-label">Biological sex <span className="label-optional">used only for health context</span><select data-testid="select-biological-sex" className="input input-large" {...form.register('biologicalSex', { required: 'Choose an option.' })}><option value="">Select an option</option><option value="Female">Female</option><option value="Male">Male</option><option value="Intersex">Intersex</option><option value="Prefer not to say">Prefer not to say</option></select>{form.formState.errors.biologicalSex && <span className="field-error">{form.formState.errors.biologicalSex.message}</span>}</label></div>}
-            {step === 2 && <div className="form-step"><span className="step-overline">STEP 2 OF 3</span><h2>Tell us what you’re feeling.</h2><p className="step-description">Plain language is perfect. Include what feels most important.</p><label className="field-label">What are your main symptoms?<textarea data-testid="input-primary-symptoms" className="input textarea" rows={5} placeholder="For example: a sore throat and headache that started yesterday…" {...form.register('primarySymptoms', { required: 'Describe your main symptoms.', minLength: { value: 3, message: 'Add a little more detail.' } })} />{form.formState.errors.primarySymptoms && <span className="field-error">{form.formState.errors.primarySymptoms.message}</span>}</label><div className="field-grid"><label className="field-label">How long has this been going on?<input data-testid="input-duration" className="input" placeholder="e.g. 2 days" {...form.register('duration', { required: 'Add a duration.' })} />{form.formState.errors.duration && <span className="field-error">{form.formState.errors.duration.message}</span>}</label><label className="field-label">How severe is it? <span className="severity-value">{form.watch('severity')}/10</span><input data-testid="input-severity" type="range" min="1" max="10" className="range-input" {...form.register('severity', { valueAsNumber: true, required: true })} /><span className="range-labels"><span>Mild</span><span>Severe</span></span></label></div></div>}
+            {step === 2 && <div className="form-step"><span className="step-overline">STEP 2 OF 3</span><h2>Tell us what you’re feeling.</h2><p className="step-description">Plain language is perfect. Include what feels most important. We’ll infer the severity from what you describe.</p><label className="field-label">What are your main symptoms?<textarea data-testid="input-primary-symptoms" className="input textarea" rows={5} placeholder="For example: a sore throat and headache that started yesterday…" {...form.register('primarySymptoms', { required: 'Describe your main symptoms.', validate: (value) => getSymptomDescriptionError(value) ?? true })} />{form.formState.errors.primarySymptoms && <span className="field-error">{form.formState.errors.primarySymptoms.message}</span>}</label><label className="field-label">How long has this been going on?<input data-testid="input-duration" className="input" placeholder="e.g. 2 days" {...form.register('duration', { required: 'Add a duration.', validate: (value) => getDurationValidationError(value) ?? true })} />{form.formState.errors.duration && <span className="field-error">{form.formState.errors.duration.message}</span>}<span className="field-help">Use a duration such as “2 days” or “3 weeks” (up to 365 days).</span></label></div>}
             {step === 3 && <div className="form-step"><span className="step-overline">STEP 3 OF 3</span><h2>A little more context.</h2><p className="step-description">Optional, but helpful for a more grounded result. Leave anything blank that doesn’t apply.</p><label className="field-label">Chronic conditions <span className="label-optional">optional</span><textarea data-testid="input-chronic-conditions" className="input textarea" rows={3} placeholder="e.g. asthma, diabetes, migraine…" {...form.register('chronicConditions')} /></label><label className="field-label">Current medications <span className="label-optional">optional</span><textarea data-testid="input-current-medications" className="input textarea" rows={3} placeholder="Include regular medicines or supplements…" {...form.register('currentMedications')} /></label><div className="privacy-callout"><ShieldCheck size={18} /><span>Your answers are used to create this assessment and are not a substitute for professional medical advice.</span></div></div>}
             {error && <div className="form-alert" role="alert" data-testid="alert-checkup-error"><AlertCircle size={17} /> {error}</div>}
             <div className="form-actions">{step > 1 ? <button type="button" className="button button-secondary" onClick={() => setStep((current) => current - 1)} data-testid="button-previous-step"><ArrowLeft size={16} /> Back</button> : <span />}{step < 3 ? <button type="button" className="button button-primary" onClick={goNext} data-testid="button-next-step">Continue <ArrowRight size={16} /></button> : <button type="submit" className="button button-primary" disabled={create.isPending} data-testid="button-submit-assessment">{create.isPending ? 'Reading your answers…' : 'See my next step'} <ArrowRight size={16} /></button>}</div>
@@ -485,7 +487,7 @@ function AssessmentDetail() {
     <div className="page-wrap detail-page">
       <div className="page-header"><div><Link href="/history" className="back-link" data-testid="link-assessment-back"><ArrowLeft size={16} /> Assessment history</Link><span className="eyebrow">Assessment from {formatDate(assessment.createdAt)}</span><h1>Your care guidance</h1><p>Use this as a conversation starter with a qualified clinician.</p></div><button className="button button-secondary button-small" onClick={() => window.print()} data-testid="button-print-assessment"><FileText size={16} /> Save / print</button></div>
       {emergency && <div className="emergency-panel" role="alert" data-testid="panel-emergency"><div className="emergency-icon"><TriangleAlert size={25} /></div><div><span className="emergency-label">ACT NOW</span><h2>Seek immediate medical care</h2><p>{analysis.redFlagWarnings[0] ?? 'Your answers suggest symptoms that should be assessed urgently.'}</p><strong>If you may be in immediate danger, call your local emergency number now.</strong></div></div>}
-      <div className="result-hero"><div><span className="eyebrow">Suggested level of care</span><div className="result-level"><UrgencyPill level={assessment.urgencyLevel} /><span>{assessment.duration} of symptoms · severity {assessment.severity}/10</span></div></div><div className="result-summary"><Sparkles size={20} /><p>{analysis.summary}</p></div></div>
+      <div className="result-hero"><div><span className="eyebrow">Suggested level of care</span><div className="result-level"><UrgencyPill level={assessment.urgencyLevel} /><span>{assessment.duration} of symptoms · inferred severity {assessment.severity}/10</span></div></div><div className="result-summary"><Sparkles size={20} /><p>{analysis.summary}</p></div></div>
       <div className="detail-grid">
         <section className="detail-main"><ResultSection icon={Activity} eyebrow="A useful starting point" title="What this may mean"><p className="prose-copy">{analysis.summary}</p><div className="cause-list">{analysis.potentialCauses.map((cause, index) => <div className="cause-item" key={`${cause.name}-${index}`}><div className="cause-top"><strong>{cause.name}</strong><span className={`likelihood likelihood-${cause.likelihood.toLowerCase()}`}>{cause.likelihood} possibility</span></div><p>{cause.description}</p></div>)}</div></ResultSection><ResultSection icon={CheckCircle2} eyebrow="Practical next steps" title="What you can do now"><ul className="guidance-list">{analysis.recommendedActions.map((action, index) => <li key={`${action}-${index}`}><span><Check size={14} /></span>{action}</li>)}</ul></ResultSection><ResultSection icon={CircleHelp} eyebrow="Take these to your appointment" title="Questions for your doctor"><ul className="question-list">{analysis.questionsForDoctor.map((question, index) => <li key={`${question}-${index}`}><span>{index + 1}</span>{question}</li>)}</ul></ResultSection></section>
         <aside className="detail-side"><div className="red-flag-card"><div className="red-flag-heading"><TriangleAlert size={18} /><h3>Watch for these signs</h3></div>{analysis.redFlagWarnings.length ? <ul>{analysis.redFlagWarnings.map((warning, index) => <li key={`${warning}-${index}`}>{warning}</li>)}</ul> : <p>No specific red flags were identified from your answers. If anything changes or feels severe, seek care.</p>}</div><div className="context-card"><span className="eyebrow">Your checkup context</span><div><span>Age</span><strong>{assessment.age}</strong></div><div><span>Symptoms</span><strong>{truncate(assessment.primarySymptoms, 72)}</strong></div><div><span>Health context</span><strong>{assessment.chronicConditions || 'None shared'}</strong></div></div><div className="disclaimer-card"><Info size={17} /><div><strong>A note on CarePulse</strong><p>{analysis.disclaimer}</p></div></div></aside>

@@ -27,11 +27,6 @@ export interface AssessmentInput {
      * @maxLength 100
      */
   duration: string;
-  /**
-     * @minimum 1
-     * @maximum 10
-     */
-  severity: number;
   /** @maxLength 3000 */
   chronicConditions?: string;
   /** @maxLength 3000 */

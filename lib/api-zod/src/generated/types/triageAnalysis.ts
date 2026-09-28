@@ -9,6 +9,11 @@ import type { PotentialCause } from './potentialCause';
 import type { UrgencyLevel } from './urgencyLevel';
 
 export interface TriageAnalysis {
+  /**
+     * @minimum 1
+     * @maximum 10
+     */
+  severity?: number;
   urgencyLevel: UrgencyLevel;
   disclaimer: string;
   summary: string;
