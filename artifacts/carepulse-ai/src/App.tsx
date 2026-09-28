@@ -479,7 +479,8 @@ function AssessmentDetail() {
   if (query.isError || !query.data) return <div className="page-wrap"><QueryError onRetry={() => query.refetch()} detail="We couldn’t find that assessment." /></div>;
   const assessment = query.data;
   const analysis = assessment.aiAnalysis;
-  const emergency = assessment.urgencyLevel === 'EMERGENCY_IMMEDIATE_CARE' || analysis.redFlagWarnings.length > 0;
+  const reportedEmergencySymptoms = /chest\s+pain|shortness\s+of\s+breath|difficulty\s+breathing|trouble\s+breathing|sudden\s+numbness|uncontrolled\s+bleeding/i.test(assessment.primarySymptoms);
+  const emergency = assessment.urgencyLevel === 'EMERGENCY_IMMEDIATE_CARE' || reportedEmergencySymptoms;
   return (
     <div className="page-wrap detail-page">
       <div className="page-header"><div><Link href="/history" className="back-link" data-testid="link-assessment-back"><ArrowLeft size={16} /> Assessment history</Link><span className="eyebrow">Assessment from {formatDate(assessment.createdAt)}</span><h1>Your care guidance</h1><p>Use this as a conversation starter with a qualified clinician.</p></div><button className="button button-secondary button-small" onClick={() => window.print()} data-testid="button-print-assessment"><FileText size={16} /> Save / print</button></div>

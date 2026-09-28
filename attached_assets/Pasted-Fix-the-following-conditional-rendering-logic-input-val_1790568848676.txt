@@ -1,0 +1,23 @@
+Fix the following conditional rendering logic, input validation, and error handling across both client and server:
+
+1. Conditional Rendering for Emergency Alerts:
+   - The red emergency banner ("ACT NOW - Seek immediate medical care") is currently rendering unconditionally on every assessment.
+   - Update the assessment UI component so that the red "ACT NOW" emergency card ONLY renders if:
+     a) assessment.urgency_level === "EMERGENCY_IMMEDIATE_CARE", OR
+     b) Severe red-flag emergency symptoms (such as chest pain, trouble breathing, sudden numbness/weakness, or uncontrolled bleeding) were explicitly reported.
+   - For non-emergency cases ("Self-Care" or "Routine Consultation" with mild severity), do not render the red emergency card. Show only standard guidance, reassurance, and next steps.
+
+2. Age Input & Numerical Validation (Frontend & Backend):
+   - In the frontend checkup form, restrict the age input to type="number", step="1", min="1", max="120". Prevent typing scientific notation ('e'), decimal points, negative values, or zero.
+   - On the backend Zod validation schema, strictly validate age: z.number().int("Age must be a whole number").min(1, "Age must be at least 1").max(120, "Please enter a valid age between 1 and 120").
+   - Parse numeric fields before validation so stringified numbers from forms do not trigger raw type mismatches.
+
+3. Input Sanitization & Anti-Gibberish Guards:
+   - Ensure 'primary_symptoms' requires at least 3 characters of meaningful descriptive text. Block empty queries, punctuation-only inputs, or non-symptom strings like "nothing", "none", or "wait what?".
+   - Trim leading/trailing whitespace and sanitize chronic conditions and medication inputs so users cannot submit pure symbol spam.
+   - If user input lacks valid clinical or physical symptom descriptions, have Gemini or the controller gracefully ask the user to describe specific bodily symptoms rather than generating an analysis card.
+
+4. User-Friendly Error Presentation:
+   - Catch all backend Zod and API validation errors in Express middleware and return clean, human-readable error messages.
+   - Never expose raw backend JSON dumps or stack traces (e.g., HTTP 400: [{"code": "invalid_type"...}]) to the user interface.
+   - Render validation errors as clean helper text under the respective form field.
